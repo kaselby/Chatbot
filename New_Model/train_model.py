@@ -170,7 +170,7 @@ def train_epochs(wd, lines, encoder, decoder, encoder_optimizer, decoder_optimiz
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
             print_summary = '%s (%d %d%%) %.4f' % (
-            time_since(start, epoch / n_epochs), epoch, epoch / n_epochs * 100, print_loss_avg)
+            time_since(start, epoch / n_epochs), epoch, epoch / n_epochs * 100, float(print_loss_avg))
             print(print_summary)
 
         '''
@@ -246,7 +246,7 @@ def save_model(encoder, decoder, wd, out_path="", fig=None):
 
 def init_model(wd, n_layers, hidden_size, learning_rate=0.05, decoder_learning_ratio=5.0):
     encoder = EncoderRNN(wd.n_words, hidden_size, n_layers=n_layers)
-    decoder= SimpleDecoderRNN(hidden_size, wd.n_words, n_layers=n_layers)
+    decoder= LuongAttnDecoderRNN('dot', hidden_size, wd.n_words, n_layers=n_layers)
 
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
@@ -278,5 +278,5 @@ if __name__ == '__main__':
                                                            int(epochs), int(batch_size), float(learning_rate)
     wd, lines = prepare_data(datafile, max_n=max_lines)
     encoder, decoder, enc_opt, dec_opt = init_model(wd, n_layers, hidden_size, learning_rate=learning_rate)
-    train_epochs(wd, lines, encoder, decoder, enc_opt, dec_opt, batch_size, epochs)
+    train_epochs(wd, lines, encoder, decoder, enc_opt, dec_opt, batch_size, epochs, attention=True)
     save_model(encoder, decoder, wd)
