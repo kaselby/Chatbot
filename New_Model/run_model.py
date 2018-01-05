@@ -35,7 +35,7 @@ def load_model(model_file):
     i2w.close()
 
     encoder1 = EncoderRNN(wd.n_words, hidden_size, n_layers=e_layers)
-    decoder1 = SimpleDecoderRNN(hidden_size, wd.n_words, n_layers=d_layers)
+    decoder1 = LuongAttnDecoderRNN('dot', hidden_size, wd.n_words, n_layers=d_layers)
     if not USE_CUDA:
         encoder1.load_state_dict(torch.load(cwd+DATA_DIR+ENC_FILE,map_location=lambda storage, loc: storage))
         decoder1.load_state_dict(torch.load(cwd+DATA_DIR+DEC_FILE,map_location=lambda storage, loc: storage))
@@ -85,7 +85,7 @@ def evaluate(encoder, decoder, wd, input_seq, max_length=MAX_LENGTH, attention=F
         # Run through decoder
         for di in range(max_length):
             decoder_output, decoder_hidden, decoder_attention = decoder(
-                decoder_input, decoder_hidden, encoder_outputs
+                decoder_input, decoder_hidden, encoder_outputs, lengths=None
             )
             decoder_attentions[di, :decoder_attention.size(2)] += decoder_attention.squeeze(0).squeeze(0).cpu().data
 
@@ -101,31 +101,31 @@ def evaluate(encoder, decoder, wd, input_seq, max_length=MAX_LENGTH, attention=F
             # Next input is chosen word
             decoder_input = Variable(torch.LongTensor([ni]))
             if USE_CUDA: decoder_input = decoder_input.cuda()
-        else:
-            # Run through decoder
-            for di in range(max_length):
-                decoder_output, decoder_hidden= decoder(
-                    decoder_input, decoder_hidden, encoder_outputs
-                )
+    else:
+        # Run through decoder
+        for di in range(max_length):
+            decoder_output, decoder_hidden= decoder(
+                decoder_input, decoder_hidden, encoder_outputs
+            )
 
-                # Choose top word from output
-                topv, topi = decoder_output.data.topk(1)
-                ni = topi[0][0]
-                if ni == EOS_INDEX:
-                    decoded_words.append(EOS_INDEX)
-                    break
-                else:
-                    decoded_words.append(ni)
+            # Choose top word from output
+            topv, topi = decoder_output.data.topk(1)
+            ni = topi[0][0]
+            if ni == EOS_INDEX:
+                decoded_words.append(EOS_INDEX)
+                break
+            else:
+                decoded_words.append(ni)
 
-                # Next input is chosen word
-                decoder_input = Variable(torch.LongTensor([ni]))
-                if USE_CUDA: decoder_input = decoder_input.cuda()
+            # Next input is chosen word
+            decoder_input = Variable(torch.LongTensor([ni]))
+            if USE_CUDA: decoder_input = decoder_input.cuda()
 
     # Set back to training mode
     encoder.train(True)
     decoder.train(True)
 
-    return wd.to_words(decoded_words)
+    return decoded_words
 
 def converse(encoder, decoder, wd, max_length=MAX_LENGTH):
     print("Enter your message (press q to quit):")
@@ -136,8 +136,8 @@ def converse(encoder, decoder, wd, max_length=MAX_LENGTH):
             end = True
         else:
             msg = normalize_string(msg).split(" ")
-            raw_resp = evaluate(encoder, decoder, wd, msg)
-            #resp = clean_resp(raw_resp, RESERVED_W2I)
+            raw_resp = wd.to_words(evaluate(encoder, decoder, wd, msg, attention=True))
+            resp = clean_resp(raw_resp, RESERVED_W2I)
             print(raw_resp)
 
 if __name__ == '__main__':

@@ -31,10 +31,12 @@ EOS_OLD = "EOS"
 SOS_OLD = "SOS"
 PAD_OLD = "PAD"
 
-TOKENS = {r'\.\.\.': ' '+ELP+' ', r'\\n': ' '+NL+' '}
+TOKENS = {r'\.\.\.': ' '+ELP+' '}
 RESERVED_I2W = {SOS_INDEX: SOS, EOS_INDEX: EOS, UNK_INDEX: UNK, RMVD_INDEX: RMVD,
             PAD_INDEX: PAD, ELP_INDEX: ELP, NL_INDEX: NL}
 RESERVED_W2I = dict((v,k) for k,v in RESERVED_I2W.items())
+
+
 
 DATA_DIR = "current_model/"
 ENC_FILE = "enc.pt"
@@ -63,7 +65,7 @@ def normalize_string(s):
     s = re.sub(r"[^a-zA-Z.!?<>']+", r" ", s)
     return s
 
-def clean_resp(raw_resp, rmv_tokens):
+def clean_resp(raw_resp, rmv_tokens=list(RESERVED_W2I.keys())):
     resp = [w for w in raw_resp if not w in rmv_tokens]
     return " ".join(resp)
 
@@ -75,7 +77,7 @@ def import_data(datafile, max_n=-1):
         for line in infile:
             if max_n > 0 and count >= max_n:
                 break
-            lines.append(line.split(","))
+            lines.append(line[:-1].split(","))
             count += 1
         return lines
 
